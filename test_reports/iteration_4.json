@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend-only Playwright verification of the captcha 're-capture' race bug fix on /login and /register, plus post-login regression. All 6 requested scenarios PASSED: (1) captcha question stayed identical for 3.5s with zero re-fetch and exactly one widget rendered; (2) login as admin@plotto.app with correct sum redirected to /browse ('Welcome back' toast); (3) wrong captcha showed 'Incorrect captcha answer.' AND the challenge re-issued to a new question, then the new sum logged in successfully; (4) captcha-refresh fetched a new question and cleared the answer field; (5) register with unique email + correct captcha created the account and redirected to /browse (session/user shown in sidebar); (6) regression - browse (1,852 conflicts) loads, Plot Builder A/B/C panels render, conflict detail #1a shows PARENT/CHILD situation panels (ref-link-*) and character key (character-key, char-key-A/B/F-A/F-B/BX), 'Add to builder' updates sidebar badge. No console errors other than the expected 400 for the intentional wrong-captcha submit.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor robustness: on login/register failure the parent keeps the old captchaId in state while the remounted <Captcha> re-fetches; a user who submits during that ~200ms window would send the already-consumed captcha_id and see another 'Incorrect captcha answer.'. Consider clearing captchaId when incrementing reload, and/or disabling submit while Captcha loading.",
+    "Backend rejects reserved TLDs (.test) with a raw pydantic email message ('value is not a valid email address: The part after the @-sign is a special-use or reserved name...'). Surfacing this verbatim is acceptable but a friendlier message would be better UX."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (skipped per request)", "frontend": "100% (6/6 scenarios)"},
+  "seed_data_creation": "Created one test account via UI register: TEST_qa1788154954@example.com / qatest123",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@plotto.app / PlottoAdmin123 (works)",
+  "context_for_next_testing_agent": "Captcha race bug is fixed and verified via real Playwright clicks. Captcha answer = sum of the two ints in data-testid='captcha-question'. Wrong-captcha submits do NOT count toward the 5-attempt lockout (verify_captcha runs before login_attempts counting). Backend was not tested this iteration.",
+  "rca_of_the_issue": "Original bug was React StrictMode double-invoking the mount effect, causing a second /auth/captcha fetch that replaced the challenge ~1-2s after render. The startedRef guard in Captcha.js now ensures exactly one fetch per mount; re-issuing is done intentionally by remounting via key={reload}. Verified: 0 additional captcha requests after initial render and a stable question over 3.5s."
+}

@@ -1,0 +1,61 @@
+{
+  "summary": "Full backend + frontend E2E test of Plotto Navigator. Backend: 33 pytest tests across plotto reference data, auth/captcha, bookmarks and saved plots (32 pass, 1 fail). Frontend: landing, browse (category filter, search, pagination), conflict detail + cross-reference navigation, register/login with captcha, bookmarks, A/B/C clauses, character symbols, plot builder (clause selects, skeleton preview, reorder, notes, save), library (list/edit/delete), protected routes, logout and mobile viewport — all core flows work. One real backend bug found in the brute-force lockout path (HTTP 500) plus an ineffective lockout key behind the ingress.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/login",
+        "issue": "Brute-force lockout path returns 500 Internal Server Error instead of 429. auth.py:144 compares `locked_until` (stored as naive datetime by Mongo) with `datetime.now(timezone.utc)` -> TypeError: can't compare offset-naive and offset-aware datetimes. Reproduced on localhost:8001: attempts 1-5 -> 401, attempts 6+ -> 500, and a subsequent login with the CORRECT password also returns 500 for the whole 15-min window, so the account is unusable with an opaque 500. Fix: store/compare tz-aware (e.g. `locked_until.replace(tzinfo=timezone.utc)`).",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/login",
+        "issue": "Lockout identifier is `f\"{client_ip}:{email}\"`, but behind the k8s ingress the observed client IP rotates (login_attempts showed 10.49.139.198 count=4 and 10.49.139.196 count=3 for the same email/attack). Counts get split so the 5-attempt threshold is never reached via the public URL — brute-force protection is effectively disabled in production. Recommend keying on email (optionally + X-Forwarded-For)."
+      },
+      {
+        "endpoint": "server.py",
+        "issue": "Uses deprecated FastAPI `@app.on_event(\"startup\"/\"shutdown\")`; migrate to the lifespan context manager."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Register / Login captcha",
+        "issue": "Captcha is fetched twice on mount (React StrictMode double-effect). The visible question can be replaced ~1-2s after the form renders and the answer field is reset, so a fast user who answers the first question gets 'Incorrect captcha answer.' Reproduced once (typed answer for 'What is 6 + 6?', submission failed and the widget then showed 'What is 8 + 4?'). Dev/StrictMode-only, low priority, but a mount guard/AbortController in Captcha.js would remove the race.",
+        "affected_selectors": ["[data-testid=\"captcha-question\"]", "[data-testid=\"captcha-answer-input\"]"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Browse (mobile/tablet <1024px)",
+        "issues": ["Category filter rail is `hidden lg:block` with no mobile/tablet alternative (no drawer/select), so category and subcategory filtering is completely unavailable below 1024px. Search still works. No horizontal overflow observed; mobile menu open/close works."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: fix naive/aware datetime comparison in auth.py login lockout check (currently 500s and blocks a valid password for 15 minutes).",
+    "Key the login lockout on email (not proxy IP) so the 5-attempt rule actually triggers behind the ingress.",
+    "Optional: guard Captcha.js against the StrictMode double fetch (mount flag / AbortController) so the visible challenge does not change after render.",
+    "Optional: add a mobile/tablet category filter (drawer or select) to Browse."
+  ],
+  "critical_code_review_comments": [
+    "auth.py:144 — `locked_until > datetime.now(timezone.utc)` on a value read back from Mongo (naive) raises TypeError and surfaces as an unhandled 500; normalise tzinfo on read.",
+    "auth.py:139-140 — lockout identifier derived from `request.client.host`; behind ingress this is a rotating pod/proxy IP, defeating rate limiting.",
+    "Verified good: bcrypt hashes are $2b$, httpOnly+secure cookies set on login, CORS uses explicit origins from env with credentials, plots/bookmarks are strictly user-scoped (cross-user GET/PUT/DELETE all 404), no MongoDB _id leaks, seed_admin re-hashes when ADMIN_PASSWORD changes."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "97% (32/33 pytest)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "Test users created via signup: writer879048@plotto.app / writer123 (used for UI flow) plus disposable TEST_writer_*/TEST_lock_* accounts from pytest. Test plots/bookmarks created were deleted by the tests.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "Admin admin@plotto.app / PlottoAdmin123 (login + /api/auth/me verified, role=admin). UI test user: writer879048@plotto.app / writer123.",
+  "context_for_next_testing_agent": "Backend regression suite is /app/backend/tests/backend_test.py (run: cd /app/backend && python -m pytest tests/backend_test.py -q). Only TestAuth::test_brute_force_lockout fails, and it fails on purpose: it asserts no 500 in the lockout sequence (hits localhost:8001 directly because the public ingress rotates client IPs). Frontend testids for clauses are clause-<field>-<n> / use-clause-<field>-<n> where field = a_clause|b_clause|c_clause (NOT a|b|c as in the request doc); Browse pagination controls only render when pages > 1 (search 'jealous' = 8 results so no pagination — not a bug). Logout navigates to '/' (Landing) so sidebar-login-button is absent there; protected routes correctly redirect to /login.",
+  "rca_of_the_issue": "Motor/PyMongo returns BSON dates as naive datetimes. login_attempts.locked_until is written as an aware UTC datetime but read back naive, so `locked_until > datetime.now(timezone.utc)` in the lockout guard raises TypeError, producing a 500 for every login attempt (right or wrong password) for that identifier until the record's 15-minute window passes. Reproduction: register a user, POST /api/auth/login 6 times with a wrong password against http://localhost:8001 -> 401 x5 then 500; a 7th attempt with the correct password also returns 500."
+}

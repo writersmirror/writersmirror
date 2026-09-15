@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend-only verification of 3 requested flows via Playwright on the preview URL, signed in as writer@plotto.app (UI login form + math captcha solved from captcha-question). FLOW1 (account-synced draft restore): built a 2-step spine in Story Studio (tree-group-Enterprise -> tree-sub-Misfortune -> first heading -> plot-point-0 -> child-option-1), waited for the ~800ms debounce, then (a) verified restore in a brand-new browser context with empty localStorage and (b) verified restore after in-session logout + localStorage.removeItem + re-login: spine-count showed '2 steps in your story' with spine-node-0/1 present in both cases. FLOW2 (folder rename): saved 'QA Story A' into TestFolderA via process-steps-button/review-title-input/review-folder-input/review-save-button, renamed folder-TestFolderA to RenamedFolderB via rename controls — header updated, plot still nested under it, old folder gone, and it persisted after a full page reload. FLOW3 (move plot): saved 'QA Story B' into SecondFolder, then move-plot-<id> dropdown -> move-target-<id>-RenamedFolderB moved the card into RenamedFolderB and it persisted after reload (SecondFolder disappeared since it became empty — folders are derived from plots). All 3 flows PASS; no console errors other than expected 401s from /auth/me before login.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Library plot card", "issue": "Step count text is not pluralized: shows '1 steps' for a single-step story", "selector": "[data-testid^='plot-card-'] span", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "My Library", "issues": ["A folder vanishes from the list once its last plot is moved out (folders are derived from plot.folder, so empty folders cannot exist). Acceptable, but users renaming/moving may find the folder gone unexpectedly.", "Move dropdown offers only existing folders — no 'create new folder' option."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["Optional: pluralize step count on library plot cards ('1 step' vs '2 steps')."],
+  "critical_code_review_comments": [
+    "BuilderContext pull-on-login only adopts the server draft when the local draft is empty (localStorage persists after logout). This is intentional (local wins) but means a different account signing in on the same browser will keep the previous user's local draft; consider clearing plotto_draft_v1 on logout.",
+    "Library.js rename/move use optimistic UI with a load() rollback on failure — good; no _id leakage observed in rendered data."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (frontend-only scope)", "frontend": "100% (3/3 flows)" },
+  "seed_data_creation": "Created saved plots 'QA Story A' (folder TestFolderA -> renamed RenamedFolderB) and 'QA Story B' (SecondFolder -> moved to RenamedFolderB) under writer@plotto.app; the account draft holds a 2-step spine (conflicts 595, 85a).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "writer@plotto.app / writer123 (captcha solved by parsing 'What is X + Y?')",
+  "context_for_next_testing_agent": "Library folders are derived from plot.folder; empty folders disappear. Draft sync verified both cross-context and post-logout with localStorage cleared. Playwright login helper: fill login-email/password-input, parse captcha-question with regex (\\d+)\\s*\\+\\s*(\\d+), fill captcha-answer-input, click login-submit-button. Screenshots without animations=disabled can time out on this app (framer-motion).",
+  "rca_of_the_issue": "N/A — all three requested flows behaved as designed."
+}

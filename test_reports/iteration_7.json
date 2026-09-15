@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only retest of (1) 3-level Browse category tree and (2) X-mystery symbol plain-English rendering. Both features verified working end-to-end via real Playwright on the public preview URL. Also verified /characters page and ClauseText chips handle X-variants without crashing, and unit-verified plottoSymbols.js (renderPlainEnglish/resolveCast/extractSymbols) against real plotto.json data via node.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Browse cards / Conflict detail", "issues": ["Backend now returns b_heading for every conflict but the frontend never displays it (grep for 'b_heading' in /app/frontend/src returns nothing). Cards and /conflict/:id still show only the subcategory, so a user cannot see which B-heading (masterplot) a conflict belongs to unless they drilled the rail. Consider showing it as a breadcrumb on ConflictDetail."]},
+      {"screen": "Browse card #1108", "issues": ["Summary text 'his son, SN' keeps a raw un-chipped 'SN' (data uses bare SN, not SN-A), so it renders as plain text while all other symbols get chips. Cosmetic/data nit, pre-existing."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/xsym_check.mjs"],
+  "action_items": [
+    "Optional: surface b_heading in the UI (conflict card meta and/or ConflictDetail breadcrumb) — it is fetched but unused.",
+    "Optional: chip bare 'SN' (and similar suffix-less family symbols) in ClauseText or normalize in data."
+  ],
+  "critical_code_review_comments": [
+    "plottoSymbols.buildRegex uses '(?:syms)X?' — safe here because AX/BX/X are also explicit designations in plotto.json, so map lookups hit directly and baseDesc's 'mysterious ' fallback is only used for other bases (e.g. A-2X). Verified no infinite recursion in describe() for X-variants.",
+    "Cast chips intentionally show the raw canonical token (e.g. 'BX') next to its English label; step text contains no raw X symbols — matches spec."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "100% of requested flows passed"},
+  "seed_data_creation": "none (localStorage draft only: conflicts 19a + 20a, per-session)",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "verified_results": {
+    "browse_3_level_tree": "PASS - category-Love and Courtship / category-Married Life / category-Enterprise visible; click Enterprise -> subcategory-Personal Limitations (96); click -> heading-Seeking Against Difficulties to Realize a Cherished Ideal (17); click -> exactly 17 conflict cards incl conflict-card-1107a and conflict-card-1107b; caption reads '17 conflicts in Enterprise · Personal Limitations · Seeking Against Difficulties to Realize a Cherished Ideal'; zero console errors.",
+    "heading_filter_accuracy": "PASS - all 17 cards match backend GET /api/plotto/conflicts?category=Enterprise&subcategory=Personal Limitations&heading=... (total 17, ids 1107a..1121).",
+    "x_mystery_plain_english": "PASS - added #19a (BX) and #20a (X) from Browse, navigated in-app to /builder: presentation-cast shows 'BX -> Mysterious female person, or one of unusual character' and 'X -> Inanimate object, an object of mystery, an uncertain quantity'; present-step-19a renders '...by marrying mysterious female person, or one of unusual character.' and present-step-20a renders '...buy an object, inanimate object, an object of mystery, an uncertain quantity, ...' — no raw AX/BX in step text.",
+    "characters_page": "PASS - /characters lists AX/BX/X with mysterious/uncertain-quantity descriptions, no crash; ClauseText chip for BX on /conflict/19a renders and hovers without error.",
+    "node_unit_check": "renderPlainEnglish/resolveCast/extractSymbols run clean on BX/X/AX texts (no infinite loop, correct English)."
+  },
+  "context_for_next_testing_agent": "Preview URL https://story-builder-248.preview.emergentagent.com. Playwright sessions are fresh contexts, so localStorage draft ('plotto_draft_v1') does NOT survive between tool invocations — add conflicts and check /builder in the SAME script (in-app sidebar 'Plot Builder' link is more reliable than page.goto). Anonymous pages log two harmless 401s (/api/auth/me). Not retested this round: dice, library/auth, A·B·C clauses, mobile viewport.",
+  "rca_of_the_issue": "First builder run appeared to fail (final-presentation not found) purely because page.goto after the adds hit a slow/aborted navigation in a cold preview; re-run in a single session with in-app navigation passed. No product defect."
+}

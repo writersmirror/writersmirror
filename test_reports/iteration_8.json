@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only E2E test of the new Guided Builder (Story Studio) at /builder via Playwright on the public preview URL. Verified: page/primer/tree render, 3-level progressive drill-down (group -> classification -> heading), plot-point result cards with ZERO Plotto #reference leakage, seeding into Stepping View, Story Past (parent-option-N) / Story Future (child-option-N) ordinal cards with no #ids, append via child click, prepend via parent click, 'becomes ...' character-change note on options and 'character change · becomes ...' on spine nodes, past-beginning note (conflict 259) and future-ending note (conflict 94a), spine up/down/remove controls, Process Steps drawer (cast + plain-English steps + conclusion badge), sign-in prompt when anonymous, full login -> build -> name -> folder -> save -> visible in My Library under TEST_QA Folder. Reference pages: /conflict/1108 renders bare 'SN' as a green character chip (rgb(5,150,105) on terra/10 bg) and key entry 'SN = A son'; /conflict/844b shows the 'YOU MIGHT ALSO JUMP TO' suggested-connections section (2 items) and suggested-link-94b navigates correctly. Core requested flow works end to end; only minor issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/plotto/conflicts (item id 259)", "issue": "Summary text is truncated/dangling: 'A, when B, the woman he loves, refuses to marry him, becomes' — sentence ends mid-clause (likely the trailing transformation symbol was dropped during summary generation). Renders as an incomplete plot-point card in the guided results list."},
+      {"endpoint": "GET /api/auth/login", "issue": "Test user writer@plotto.app did not exist in the current DB (login returned 401 'Invalid email or password'); had to register it. Seed/document the writer test user so QA credentials stay valid."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "GuidedBuilder results box", "issue": "Spec says the box should show 3-5 matching plot-points; it renders every conflict in the heading (limit 60) — observed 36 and 42 cards, requiring long scrolling and diluting the 'pick one of a handful' UX.", "selector": "[data-testid='plot-point-results']", "priority": "MEDIUM"},
+      {"component": "transformNotes gloss (SteppingView / ProcessStepsReview)", "issue": "Character-change gloss is not fully translated: shows 'becomes male rival or enemy of A' / 'character change — now male rival or enemy of A' while the cast list correctly expands it to 'Male rival or enemy of male protagonist'. Raw symbol 'A' still leaks into the plain-English note.", "selector": "[data-testid='review-step-0']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Process Steps save", "issue": "Save persisted correctly (plot appears in My Library under TEST_QA Folder, 3 conflicts) but the success toast was no longer in the DOM ~4.5s after click, so toast text could not be asserted. Likely just sonner auto-dismiss timing, not a defect — noting for the next agent.", "affected_selectors": ["[data-testid='review-save-button']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_8.json"],
+  "action_items": [
+    "Decide/limit the number of plot-point cards shown per heading (spec: 3-5, e.g. sample/paginate) instead of all 36-60",
+    "Fix roleLabel/transformNotes so glosses recursively expand embedded symbols (e.g. 'male rival or enemy of the male protagonist' instead of '... of A')",
+    "Repair or filter the truncated conflict summary for id 259 ('...becomes') in plotto_store data pipeline",
+    "Seed the writer@plotto.app test user (or update /app/memory/test_credentials.md) — it was missing and had to be registered by QA"
+  ],
+  "critical_code_review_comments": [
+    "GuidedBuilder passes limit=60 to /plotto/conflicts and renders all items; the guided UX contract calls for a small curated set — cap or sample server-side.",
+    "roleLabel() returns the raw character description verbatim, so nested symbols in descriptions ('male rival or enemy of A') are never expanded; reuse the resolveCast/renderPlainEnglish expansion for glosses to keep number-free/plain-English consistency.",
+    "DrillDownTree keeps its own expand state independent of the builder reset; after 'New' the previously selected heading's results remain on canvas which is acceptable but worth confirming as intended."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "95%"},
+  "seed_data_creation": "Registered test user writer@plotto.app / writer123 (QA Writer) via /api/auth/register (captcha math). Saved plot 'TEST_QA Guided Story' in folder 'TEST_QA Folder' (3 conflicts) under that user — left in place for main agent verification.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "writer@plotto.app / writer123 (created during this run); admin@plotto.app / PlottoAdmin123 (untested this run)",
+  "context_for_next_testing_agent": "All guided-flow testids verified working: tree-group-<Category>, tree-sub-<name> (note curly apostrophe in 'Love’s Beginning'), tree-heading-<name>, plot-point-N, stepping-view, spine-count, spine-node-N, parent-option-N, child-option-N, past-beginning, future-ending, spine-up/down/remove-N, process-steps-button, process-steps-review, review-cast, review-step-N, review-signin-button, review-title-input, review-folder-input, review-save-button, suggested-connections, suggested-link-<id>. Useful fixtures: conflict 1e = plot-point-4 of Love and Courtship > Love’s Beginning > 'Being Impelled...' (child options carry 'change A to A-3' -> becomes note); conflict 259 = plot-point-5 of Love’s Rejection > 'Following a Wrong Course through Mistaken Judgment' (zero lead-ups -> past-beginning); conflict 94a = plot-point-39 of Love’s Misadventures > 'Being Impelled...' (zero carry-ons -> future-ending). Reload the page after clicking new-story-button before re-driving the tree, otherwise a second click on the same group collapses it. Library folder headings are rendered uppercase via CSS, so match case-insensitively.",
+  "rca_of_the_issue": "No blocking defect. The 'becomes ... of A' leak stems from plottoText.roleLabel returning the character description as-is (descriptions themselves contain symbols); the truncated #259 card originates in backend summary data, not the UI."
+}

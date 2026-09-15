@@ -1,0 +1,109 @@
+{
+  "theme": "Organic & Earthy / Editorial Tech",
+  "vibe": "Tactile, precise, structured drafting-board for serious writing. No 'SaaS slop' or 'AI magic' aesthetics. It is a tool for focused exploration.",
+  "typography": {
+    "fonts": {
+      "heading": "Antonio, sans-serif (Tight, uppercase or bold, authoritative)",
+      "body": "Saira, sans-serif (Readable, generous line-height)",
+      "mono": "IBM Plex Mono (For Plotto codes in the backend/review ONLY, not for standard user choices)"
+    },
+    "rules": {
+      "H1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter uppercase font-heading",
+      "H2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-heading",
+      "H3": "text-xl sm:text-2xl font-heading",
+      "Body": "text-base leading-relaxed text-ink font-body",
+      "Labels": "text-xs tracking-[0.2em] uppercase text-ink-muted font-body",
+      "Anti-Pattern": "NEVER center align paragraphs. Left-align for reading flow."
+    }
+  },
+  "colors": {
+    "primary": "terra (#059669 - Emerald Green)",
+    "secondary": "sage (#697A65)",
+    "background": "paper (#F7F6F3 - Off-white warm)",
+    "surface": "surface (#FFFFFF - Pure white for cards)",
+    "text_main": "ink (#2F2E2C - Tinted off-black)",
+    "text_muted": "ink-muted (#75736C)",
+    "borders": "line (#E6E4DD), line-strong (#D1CFC7)",
+    "rules": {
+      "contrast": "Always ensure text meets APCA contrast standards. Do not use generic gray.",
+      "accents": "Use 'terra' (Emerald) exclusively for active states, the central 'Spine' line, and primary CTAs.",
+      "backgrounds": "NEVER use pure transparent backgrounds over content. Use bg-paper or bg-surface."
+    }
+  },
+  "layouts": {
+    "architecture": "The 'Drafting Board' (Asymmetric Split View)",
+    "grid_structure": "grid-cols-1 lg:grid-cols-12 h-screen overflow-hidden",
+    "zones": {
+      "Left_Sidebar_Column_A": {
+        "span": "lg:col-span-3 or lg:col-span-4",
+        "style": "bg-surface border-r border-line-strong h-full overflow-y-auto thin-scroll p-6 flex flex-col gap-6",
+        "purpose": "Contains the Primer Accordion and the Column A Progressive Disclosure Tree."
+      },
+      "Main_Canvas": {
+        "span": "lg:col-span-9 or lg:col-span-8",
+        "style": "bg-paper drafting-grid relative h-full overflow-y-auto thin-scroll",
+        "purpose": "The primary playground. Shows the 3-5 Plot-Point results, and transitions into the Stepping View (Parent/Child) timeline."
+      },
+      "Review_Drawer": {
+        "style": "Shadcn Sheet component (Slide from right)",
+        "purpose": "Process Steps compilation. Plain English translation of characters (A = Male Lead, etc.). No plotto codes visible to user except here in review."
+      }
+    }
+  },
+  "components": {
+    "PrimerPanel": {
+      "type": "Shadcn Accordion",
+      "style": "bg-sage/10 border border-sage/30 rounded-sm p-2 mb-4",
+      "instructions": "Collapsible intro explaining asterisks and character symbols (A, B, A-3, etc.). Keep it compact so it doesn't push the tree down too far."
+    },
+    "DrillDownTree": {
+      "type": "Progressive Disclosure List",
+      "style": "flex flex-col gap-2",
+      "interactions": "Group -> Classification -> Masterplot. Only reveal the next level when the parent is clicked. Use Framer Motion 'AnimatePresence' for smooth downward expansion. Use staggered indentation (pl-4, pl-8) and a vertical connecting left-border line for child nodes.",
+      "visuals": "Unselected nodes: text-ink-muted hover:bg-line/50. Selected nodes: text-terra font-semibold bg-terra/10 border-l-2 border-terra."
+    },
+    "PlotPointResults": {
+      "type": "Card Grid (in Main Canvas)",
+      "instructions": "When a user drills down, populate this box in the Main Canvas with 3-5 matching Plot-Points. HIDE the reference numbers. Make them look like physical index cards.",
+      "style": "bg-surface border border-line-strong rounded-sm shadow-sm hover:-translate-y-1 hover:shadow-md hover:border-terra transition-all cursor-pointer p-6"
+    },
+    "SteppingView": {
+      "type": "Interactive Vertical Timeline (The Story Spine)",
+      "spatial_metaphor": "UP = Past (Parent), CENTER = Present (Selected Plot-Point), DOWN = Future (Child).",
+      "layout": "A central vertical line (bg-line-strong or bg-terra/30) running top to bottom.",
+      "Center_Node": "Large, bold card. bg-surface border-l-4 border-terra shadow-lg p-8.",
+      "Parent_Options": "Rendered ABOVE center. Numbered 1..N (NO reference codes). Card style: bg-surface/80 hover:bg-surface border border-line-strong p-4 text-sm. Clicking prepends it to the story spine.",
+      "Child_Options": "Rendered BELOW center. Numbered 1..N. Similar styling to Parent. Clicking appends it.",
+      "Character_Transform_Notes": "Include plain English character change notes directly below the 1..N text in the option cards, in text-ink-muted."
+    },
+    "ProcessStepsReview": {
+      "type": "Shadcn Sheet (Right Side Drawer)",
+      "trigger": "Floating Action Button (FAB) or Header Button 'Review Process Steps' (Emerald Green).",
+      "content": "Chronological list of chosen steps. Translate Plotto codes (e.g., A-5) to plain English (e.g., 'Male Lead\\'s Friend'). Keep asterisks but explain them at the top. Include a 'Save Story' button for registered users."
+    }
+  },
+  "motion": {
+    "spine_expansion": "When a Parent or Child is selected, use Framer Motion layout animations (layout prop) so the new node smoothly slides into the center position, and new options fan out above/below.",
+    "list_stagger": "When revealing the 3-5 Plot Points, use staggered fade-up (delay: index * 0.1s).",
+    "micro_interactions": "All interactive cards must have scale or Y-translate transitions (duration 0.2s ease)."
+  },
+  "visual_enhancers": {
+    "background": "Use the `.drafting-grid` CSS class (already in App.css) on the main canvas.",
+    "texture": "Use `.paper-texture` for sidebar backgrounds.",
+    "borders": "Favor 1px crisp borders over soft shadows to maintain the 'writing tool/drafting' aesthetic. Nested radii rule: child radius <= parent radius."
+  },
+  "accessibility": {
+    "contrast": "Ensure all text meets APCA 4.5:1 minimum on backgrounds.",
+    "data_testids": "MANDATORY: Add data-testid to every clickable node, option card, and review button (e.g., data-testid='tree-node-group-1', data-testid='child-option-3', data-testid='review-steps-btn').",
+    "keyboard": "Ensure the progressive tree and timeline cards are fully navigable via Tab and Enter/Space."
+  },
+  "instructions_to_main_agent": [
+    "DO NOT use AI generated emoji icons. Use purely lucide-react icons (e.g., Book, ChevronRight, GitCommit).",
+    "CRITICAL: Hide Plotto reference numbers (e.g., '12a', '45b') from the user in the UI options. Replace them with ordinals (1, 2, 3...) when displaying Parent and Child options.",
+    "CRITICAL: Translate character codes (A, B, A-3) to their english meanings (Male Lead, Female Lead, Male Rival) in the Review drawer.",
+    "NEVER center-align paragraph text. Keep body text left-aligned.",
+    "Use pure HTML + Tailwind for the custom 'SteppingView' layout, as Shadcn cards are too rigid for a branching timeline.",
+    "Utilize Framer Motion heavily for the spatial up/down transitions, as the 'fun, absorbed exploration' requires smooth context shifts.",
+    "DO NOT overcomplicate the layout with gradients. Rely on the flat 'terra' emerald green, 'paper' off-white, and sharp borders."
+  ]
+}

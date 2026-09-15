@@ -1,0 +1,39 @@
+{
+  "summary": "Full backend (pytest, 40 tests) + frontend (Playwright on public URL) verification of the new parent/child story-tree navigation, character-change transforms, story-completeness prompts and plain-English cast key. ALL requested features work. Backend: added TestConflictTreeEnrichment (is_beginning/is_ending, enriched lead/carry links with label/starts_story/leads_to_end/modifiers, no _id leak, link counts, dashed symbol descriptions) — all pass. Frontend verified with real clicks: /browse add-to-builder-1b -> /builder shows options-parent ABOVE (4 lead-ups) and options-child BELOW (4 carry-ons) the timeline (verified by bounding-box y ordering 596 < 883 < 1083); clicking option-child-139 appended it last, clicking option-parent-171 prepended it first, and both panels re-fetched for the new first/last conflict (#171 lead-ups, #139 carry-ons with 7 options + 'A-3 -> A-2' badges). Transform badge 'B -> A' renders in the lead-ups panel and on /conflict/1b. story-status listed all 4 items and flipped the A/C items to green after selecting clauses. cast-key/character-key listed A=Male Protagonist, A-2=Male Friend Of A, A-3=Male Rival Or Enemy Of A, B=Female Protagonist. /conflict/1b shows 'Parent situations · lead-ups (4)' / 'Child situations · carry-ons (4)' + character key; /conflict/259 shows no-lead-ups, /conflict/94a shows no-carry-ons; ref-link navigation works. Regression: dice -> Open in builder still prefills and shows panels + cast key; admin login with captcha works; save plot -> appears in /library (test plot deleted afterwards).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "FIXED BY TESTER: lockout path raised 500 (TypeError: can't compare offset-naive and offset-aware datetimes) because Mongo returns naive locked_until. Added tzinfo normalisation in /app/backend/auth.py; now returns 429 after 5 failures. Suite re-run: 40/40 pass."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Cast key / Character key", "issues": ["CSS 'capitalize' title-cases every word, so descriptions read 'Male Friend Of A' / 'Male Rival Or Enemy Of A' — capitalise only the first letter (first-letter or sentence-case) for readable English."]},
+      {"screen": "/conflict/<id> character key", "issues": ["Key is built only from permutation text, so symbols visible in the lead-up/carry-on cards (A-2, A-8, F-B, B-5) are not explained on that page. Consider including link labels in the key texts so every symbol shown on screen is translated."]},
+      {"screen": "All pages (unauthenticated)", "issues": ["Console noise: two 401 responses on every page load (auth bootstrap /auth/me + refresh) for anonymous visitors — harmless but should be swallowed/short-circuited when no session cookie exists."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Optional polish: fix 'capitalize' title-casing in CharacterKey descriptions.",
+    "Optional: include lead-up/carry-on labels in the ConflictDetail CharacterKey texts so all displayed symbols are explained.",
+    "Optional: avoid 401 console errors for anonymous page loads.",
+    "Review the tester's one-line tz fix in /app/backend/auth.py login lockout."
+  ],
+  "critical_code_review_comments": [
+    "Builder fetches full conflict detail for firstId and lastId on every change — fine now, but two effects duplicate identical logic; could be one helper. When first==last it fires two identical requests.",
+    "OptionsPanel flattens all groups' links and drops the group 'mode' (include all / choose one) that ConflictDetail shows; users adding a link from a 'include all' group lose that instruction.",
+    "addConflict/prependConflict silently no-op when the ref already exists in the draft (returns d) — clicking such an option shows a success toast but nothing is added. Consider a warning toast.",
+    "Builder.js is ~475 lines and growing; consider extracting OptionsPanel/ClausePicker/StoryStatus into components."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py", "/app/backend/auth.py"],
+  "success_rate": {"backend": "100% (40/40 after tz fix)", "frontend": "100% (all requested flows passed)"},
+  "seed_data_creation": "Created + deleted plot 'TEST_QA_tree_plot' under admin@plotto.app; register-flow test users created by pytest fixtures.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@plotto.app / PlottoAdmin123 — UI login with captcha verified.",
+  "context_for_next_testing_agent": "Playwright on the public URL can click normally. Useful ids: add-to-builder-<id>, options-parent/options-child, option-parent-<ref>/option-child-<ref>, status-item-0..3, cast-key + char-key-<symbol>, no-lead-ups (#259), no-carry-ons (#94a). Login ids are login-email-input/login-password-input/captcha-answer-input/login-submit-button (NOT login-email). Dataset: 5 conflicts have no lead-ups (259,303,312,842b,920) and 44 have no carry-ons (94a,167a,...). Wait ~3s after /builder navigation for the detail fetches.",
+  "rca_of_the_issue": "Login lockout 500: pymongo/motor returns naive datetimes; comparing stored locked_until with datetime.now(timezone.utc) raised TypeError, surfacing as 500 for the 6th+ failed login. Fixed by normalising tzinfo to UTC before comparison."
+}

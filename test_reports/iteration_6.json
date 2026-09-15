@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only RETEST of the 3 HIGH plain-English rendering defects from iteration_5 in the Builder Final Presentation. ALL THREE ARE FIXED. (1) Nested symbol leak: conflict #117 now renders 'The male protagonist, a wanderer, is left a fortune by the father of the male protagonist ...' and presentation-cast labels are 'Male protagonist', 'Father of the male protagonist', 'A mysterious female person...' — no bare Plotto letters (the only 'A' tokens found were the English article at sentence start / inside the BX description, plus the intentional mono symbol chip that shows the canonical designation). (2) A-clause grammar: selecting '2. A Married Person' gives present-beginning = 'Beginning · Married Person.' (leading article stripped). (3) Alias no-collapse: #1b alone renders 'The male protagonist ... falls in love with aristocratic the female protagonist' with cast A=Male protagonist + B=Female protagonist; the harder chain #1106 (B → A) + #1b also keeps the two people distinct (step1 'The female protagonist ... yearns for social prestige', step2 male + female) and the cast lists BOTH. Verified via real UI clicks on /dice, /conflict/117, /browse and /builder. Also cross-checked plottoSymbols.renderPlainEnglish/resolveCast directly in node against the live /api/plotto/characters payload (54 chars) — returns in <1ms, no infinite recursion.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "plottoSymbols.renderPlainEnglish", "issue": "Double / duplicated article: the renderer unconditionally prefixes 'the' to a resolved description, producing 'falls in love with aristocratic the female protagonist' (#1b) and 'will marry the a mysterious female person, or one of unusual character' (#117, BX description already begins with 'a'). Suggest: omit the leading 'the' when the substitution follows an adjective/determiner, and strip a leading 'a/an/the' from the character description before prefixing.", "selector": "[data-testid='present-step-1b'], [data-testid='present-step-117']", "priority": "MEDIUM"},
+      {"component": "Builder / transform note", "issue": "For the #1106 (B → A) + #1b chain the alias is now (correctly) refined away, but the step still prints 'character change: B → A (kept consistent above)' while the text is NOT re-identified — the copy is now misleading for the refined case.", "selector": "[data-testid='present-step-1106']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Builder / skeleton-preview", "issues": ["Cosmetic double period still present when a clause description already ends with '.' — 'Undertakes a role that leads straight to catastrophe..' (dice-loaded plot)"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_6.json", "/app/test_reports/rpe_check2.mjs"],
+  "action_items": [
+    "MEDIUM: fix duplicated article in renderPlainEnglish ('aristocratic the female protagonist', 'the a mysterious female person')",
+    "LOW: suppress/reword the 'kept consistent above' transform note when refineAlias dropped that alias",
+    "LOW: cosmetic double period in Masterplot skeleton"
+  ],
+  "critical_code_review_comments": [
+    "describe() + refineAlias() now correct; note Builder.js is still ~569 lines — extracting the Final Presentation block would keep it under the size guideline."
+  ],
+  "updated_files": ["/app/test_reports/rpe_check2.mjs (new node harness, test-only)"],
+  "success_rate": {"backend": "not tested (skipped per request)", "frontend": "100% of the 3 retested defects pass"},
+  "seed_data_creation": "None persisted; only local builder drafts (localStorage plotto_draft_v1) created during runs. No login used.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "not required (builder is public); admin@plotto.app / PlottoAdmin123 available",
+  "context_for_next_testing_agent": "All 3 iteration_5 HIGH rendering bugs are fixed and verified. Useful recipes: add a specific conflict via /conflict/<id> -> [data-testid=detail-add-to-builder], then click sidebar 'Plot Builder' link (do NOT page.goto with wait_until='networkidle' — the /api/auth/me 401 polling keeps the network busy and goto times out; use domcontentloaded or in-app navigation). Transform chain test: add 1b from /browse, then in /builder click [data-testid=option-parent-1106] (B → A). presentation-cast shows a mono chip with the canonical designation (A/B/F-A) next to the plain-English label — that chip is intentional, do not flag it as a symbol leak. During 3 of 8 runs the preview page became briefly unresponsive (screenshot/goto timeouts) right after a webpack recompile; retrying the run succeeded.",
+  "rca_of_the_issue": "Remaining article defect: renderPlainEnglish emits 'the ' + describe(sym) unconditionally, without inspecting the preceding token or whether the description already starts with an article."
+}

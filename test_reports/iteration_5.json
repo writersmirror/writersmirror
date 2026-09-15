@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only Playwright testing of the 3 new features: (A) Transform Applied, (B) Full Conclusion / Final Presentation view, (C) Save Folders + resume, plus regressions (login captcha, dice->builder, browse add, parent/child panels, save+update+delete). All four requested flows WORK end-to-end. Found 3 plain-English rendering / character-identity correctness defects and 2 cosmetic issues. Backend skipped per request (verified indirectly through UI round-trips).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Builder / Final Presentation (renderPlainEnglish)", "issue": "Nested symbols inside character descriptions are NOT resolved, so raw Plotto letters still leak into the 'plain English' output. Dice-generated plot rendered cast 'F-A -> Father Of A' and step text '#117 · Male Protagonist, a wanderer, is left a fortune by Father Of A, his ...'. Expected 'Father of the Male Protagonist'. Fix: recursively apply renderPlainEnglish to each character description (with cycle guard) before title-casing.", "selector": "[data-testid='presentation-cast'], [data-testid='present-step-117']", "priority": "HIGH"},
+      {"component": "Builder / present-beginning", "issue": "A-clause descriptions start with the English article 'A' (e.g. 'A Person in Love', 'A Married Person'). renderPlainEnglish treats that article as the protagonist symbol, producing 'Beginning · Male Protagonist Person in Love.' (grammatically broken). The Masterplot skeleton block correctly strips the leading letter; the presentation should do the same (or render 'Male Protagonist is a Person in Love').", "selector": "[data-testid='present-beginning']", "priority": "HIGH"},
+      {"component": "Builder / buildAlias transform collapse", "issue": "Alias folding is too aggressive when a single step contains BOTH the source and target symbol. Chain #1106 (B -> A) + #1b renders step 2 as 'Female Protagonist, of humble birth, falls in love with aristocratic Female Protagonist.' — two distinct people share one identical label — and presentation-cast lists only ONE person ('B Female Protagonist (also written A)') even though #1b clearly has two characters. Suggested fix: when the canonical label is already taken within the same sentence/plot, disambiguate (e.g. keep the transformed character on the earlier identity and label the newly-introduced symbol with its own description + qualifier).", "selector": "[data-testid='presentation-cast'], [data-testid='present-step-1b']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Builder", "issues": ["Masterplot skeleton renders a double period when the last clause description already ends with '.' — 'Pays a grim penalty in an unfortunate undertaking..'", "Anonymous visits log two 401 errors in console (/api/auth/me refresh) — noisy but harmless"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_5.json"],
+  "action_items": [
+    "renderPlainEnglish: recursively resolve symbols nested inside character descriptions (F-A, M-B, B-3, BX ...) so no raw letters remain",
+    "present-beginning: strip / do not substitute the leading article of A-clause descriptions ('A Person in Love')",
+    "Disambiguate cast + step labels when a transform's source and target symbols both appear in the same step (currently two people render with the identical label and the cast under-counts)",
+    "Cosmetic: avoid double period in the Masterplot skeleton sentence"
+  ],
+  "critical_code_review_comments": [
+    "plottoSymbols.renderPlainEnglish maps a symbol to its raw description string only — descriptions themselves contain symbols, so a single pass cannot produce symbol-free prose. Needs a memoised recursive resolve.",
+    "Builder.js is 567 lines and holds ClausePicker + OptionsPanel + presentation rendering; extracting FinalPresentation into its own component would keep it under the size guideline.",
+    "buildAlias has cycle protection, but no protection against label collision within a single step (see MEDIUM bug)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (skipped per request)", "frontend": "85%"},
+  "seed_data_creation": "Created and then deleted plot 'TEST_Romance Plot' (folder Romances -> renamed Epics) under admin@plotto.app. Pre-existing plot 'Folder Test' in folder 'Drafts' left untouched.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "admin@plotto.app / PlottoAdmin123 (captcha = sum of the two numbers in [data-testid=captcha-question])",
+  "context_for_next_testing_agent": "VERIFIED WORKING: (1) final-presentation with presentation-cast + present-step-<id> renders plain English for top-level symbols (no bare A/B letters in step text for #1b); (2) transform capture — clicking option-parent-1106 ('B → A') prepends and shows 'character change: B → A (kept consistent above)', persists through save + resume; (3) present-no-conclusion shows with no C-clause; selecting select-c_clause replaces it with present-conclusion 'Conclusion ·'; natural-ending conflicts DO exist (44 of 1852, e.g. 94a, 167a, 226) and adding #94a auto-renders present-conclusion 'The story reaches a natural conclusion at #94a'; (4) folder input -> builder-save -> /library groups under folder-Romances; open-plot-<id> restores title, folder, conflicts, transforms and switches the button to 'Update plot'; PUT update moves the plot to the new folder (folder-Epics); delete works. REGRESSIONS PASS: login captcha stable (single fetch), dice -> dice-to-builder loads A/B/C + conflict into builder, browse add-to-builder-<id>, options-parent/options-child panels. Note: /api/plotto/conflicts paginates with `page`, not `offset` (offset is ignored). Each browser_automation run is a fresh session — localStorage draft does not carry over between runs.",
+  "rca_of_the_issue": "All three rendering defects trace to /app/frontend/src/lib/plottoSymbols.js: renderPlainEnglish performs a single non-recursive symbol->description substitution (leaving symbols embedded in descriptions such as 'father of A'), applies substitution to A-clause text whose leading 'A' is an English article, and buildAlias collapses a transform target onto its source without checking whether both symbols co-occur in the same step."
+}

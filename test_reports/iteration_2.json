@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only Playwright verification (public URL, real clicks/typing) after the emerald/Antonio-Saira restyle and AuthShell change. Confirmed: real user interactions DO work (no overlay interception in Playwright) — the visual-edits overlay the main agent hit is specific to its own screenshot browser. Verified /dice initial roll, Roll-again fetching a new suggestion, dice-to-builder navigation + full prefill (A/B/C + conflict + toast), dice-conflict-link navigation, Browse search/category/add-to-builder + badge, admin login with captcha -> /browse, and builder save -> /library (then deleted the test plot).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Dice / ClauseText", "issue": "COSMETIC: the A-clause line renders a duplicated character badge — the 'A' tag chip followed by ClauseText parsing the leading 'A' of 'A Subtle Person' as a character symbol, so it reads 'A [A] Subtle Person'. Same pattern appears in Builder's selected-a_clause/skeleton preview ('A Married Person -> A Married Person'). Consider not running ClauseText symbol-parsing on the leading article of clause descriptions.", "selector": "[data-testid=\"dice-suggestion\"] p.text-lg", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "My Library empty state", "issues": ["The empty-state illustration is a grey blurred/unrecognisable blob (looks like a broken or wrong-crop image) above 'No saved plots yet.' — replace with a meaningful illustration or an icon."]},
+      {"screen": "Login (/login)", "issues": ["Centered form works and is readable, but the captcha answer field is a native number input with visible spinner arrows next to a tiny wrapped question box ('What is 5 + 2?' wraps onto 2 lines) — slightly cramped; consider type=text with numeric inputMode and a wider question chip."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_2.json"],
+  "action_items": [
+    "No functional bugs found in the requested flows — dice-to-builder navigates AND prefills correctly (verified clause text match char-for-char and builder-conflict-<id> present).",
+    "Optional cosmetic: avoid double 'A' badge rendering on clause descriptions (ClauseText on leading article).",
+    "Optional: replace the blurry Library empty-state image."
+  ],
+  "critical_code_review_comments": [
+    "Dice.sendToBuilder calls reset() then setField() three times; safe today only because setField uses functional setState — keep it that way (a non-functional update would drop the prefill).",
+    "Previously reported (iteration_1) backend auth lockout 500 (naive/aware datetime in auth.py) was NOT retested this round — still open unless fixed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested this iteration", "frontend": "100% (11/11 checks passed)"},
+  "seed_data_creation": "Created and then deleted saved plot 'TEST_QA_dice_plot' under admin@plotto.app. Added conflict #369 to a throwaway browser-local builder draft (localStorage only).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@plotto.app / PlottoAdmin123 — login via UI verified (captcha sum parsed from data-testid=captcha-question).",
+  "context_for_next_testing_agent": "Interactions work fine via Playwright on the public URL; clicks/typing are not blocked. Dice flow testids used: roll-dice-button, dice-suggestion, dice-conflict-link, dice-to-builder. Builder prefill asserted via selected-a_clause/selected-b_clause/selected-c_clause and builder-conflict-<id>. Library delete uses delete-plot-<id> + a confirm dialog button labelled 'Delete'. Wait ~2.5s on /login before reading the captcha (StrictMode double-fetch, see iteration_1).",
+  "rca_of_the_issue": "N/A — reported dice-to-builder concern did not reproduce; the main agent's inability to click was an artifact of the dev visual-edits overlay in its own screenshot browser, not an application defect."
+}
